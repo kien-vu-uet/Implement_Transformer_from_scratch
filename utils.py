@@ -5,25 +5,37 @@ import torch
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
-def build_vocab(raw_data):
+def resplit_data(raw_data, test_size=0.1):
+    np.random.shuffle(raw_data)
+    test_size = int(len(raw_data) * test_size)
+    return raw_data[test_size:], raw_data[:test_size]
+
+def build_text_vocab(raw_data):
     cnt = Counter()
-    tag_cnt = Counter()
     for item in raw_data:
         words = [_.lower() for _ in item['words']]
-        tags = [_ for _ in item['tags']]
         cnt.update(words)
-        tag_cnt.update(tags)
-    tokenizer = Vocab(cnt, pad_token='<pad>', unk_token='<unk>')
-    tagger = Vocab(tag_cnt, pad_token='<pad>', unk_token=None, start_with_special_tokens=False)
-    print('Word vocab size', tokenizer.vocab_size)
-    print('Tag vocab size', tagger.vocab_size)
-    return tokenizer, tagger
+    tokenizer = Vocab(cnt, pad_token='<pad>', unk_token='<unk>',\
+                       type_tokens=['<int>', '<float>', '<date>', '<name>'])
 
-def get_pretrained_vocab(tokenizer_fp, tagger_fp):
-    tokenizer = Vocab(Counter()).load(tokenizer_fp)
-    tagger = Vocab(Counter()).load(tagger_fp)
-    return tokenizer, tagger
+    print('Word vocab size', tokenizer.vocab_size)
+    return tokenizer
+
+def build_tag_vocab(raw_data):
+    tag_cnt = Counter()
+    for item in raw_data:
+        tags = [_ for _ in item['tags']]
+        tag_cnt.update(tags)
+    tagger = Vocab(tag_cnt, pad_token='<pad>', unk_token=None, \
+                   start_with_special_tokens=False)
+    print('Tag vocab size', tagger.vocab_size)
+    return tagger
+
+def get_pretrained_vocab(fp):
+    vocab = Vocab(Counter()).load(fp)
+    return vocab
 
 def move_to_cuda(batch, device):
     return (t.to(device) for t in batch)
@@ -62,3 +74,10 @@ def compute_score(cm, metric='accuracy', eps=1e-12):
     if metric == 'f1_macro': return torch.sum(f1) * 1.0 / f1.size(0)
     elif metric == 'f1_weighted': return torch.sum(f1 * torch.sum(cm, axis=1)) * 1.0 / torch.sum(cm)
     else: return torch.sum(tp) * 1.0 / torch.sum(cm)
+
+if __name__ == "__main__":
+    import json
+    raw_data = json.load(open('/workspace/nlplab/kienvt/PhoNER_COVID19_implement/data/syllable/dev_syllable.json', 'r'))
+    train, test = resplit_data(raw_data, 0.1)
+    print(train)
+    print(test)

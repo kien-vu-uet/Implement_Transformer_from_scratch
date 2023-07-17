@@ -32,14 +32,57 @@ def clean_word(word: str, special_sep='"&\'()*+-;?'):
                 post.append(word[-1])
             word = word[:-1]
         else: break
-    word = list(word)
-    words = []
-    for i in word:
-        if i not in special_sep and words != [] and words[-1][-1] not in special_sep:
-                words[-1] += i
-        else:
-            words.append(i)
-    return prev + words + post
+    # word = list(word)
+    # words = []
+    # for i in word:
+    #     if i not in special_sep and words != [] and words[-1][-1] not in special_sep:
+    #             words[-1] += i
+    #     else:
+    #         words.append(i)
+    return prev + [word] + post
+
+
+def is_float(token: str):
+    try:
+        token = float(token.replace(',', '.'))
+        return True
+    except Exception:
+        pass
+    return False
+
+def is_integer(token: str):
+    try:
+        token = token.replace(' ', '').replace('.', '')
+        token = int(token)
+        return True
+    except Exception:
+        return False
+    
+def is_date(token: str):
+    try:
+        tokens = token.split('/')
+        return (is_integer(tokens[0]) and int(tokens[0]) in range(0, 32)) \
+            and (is_integer(tokens[1]) and int(tokens[1]) in range(0, 13))
+    except Exception:
+        return False
+    
+def is_name(token: str):
+    try: 
+        while len(token) > 0:
+            if ord(token[0]) not in range(ord('a'), ord('z') + 1) or token[1] != '.': 
+                return False
+            else:
+                token = token[2:]
+        return True
+    except Exception:
+        return False
+
+def tokenize_type(token: str):
+    if is_integer(token): return '<int>'
+    if is_float(token): return '<float>'
+    if is_date(token): return '<date>'
+    if is_name(token): return '<name>'
+    return token
 
 class Vocab:
     def __init__(
@@ -48,6 +91,7 @@ class Vocab:
             pad_token: str = '<pad>',
             unk_token: Optional[str] = None,
             start_with_special_tokens: Optional[bool] = True,
+            type_tokens: Optional[list] = None,
     ):
         word_start_idx = 2 if start_with_special_tokens else 0
         self.word2index = {k:v for k, v in zip(
@@ -64,6 +108,9 @@ class Vocab:
         else:
             self.unk_token = ''
             self.unk_token_id = -1
+        if type_tokens is not None:
+            for t in type_tokens:
+                self.word2index[t] = len(self.word2index)
         self.index2word = {v:k for k, v in self.word2index.items()}
         self.punc_tokens = [p for p in string.punctuation if p in self.word2index.keys()]
 
@@ -83,6 +130,12 @@ class Vocab:
             return self.unk_token_id
         return self.word2index[w]
     
+    def stoi2(self, w: str):
+        w = tokenize_type(w)
+        if w not in self.word2index.keys():
+            return self.unk_token_id
+        return self.word2index[w]
+    
     def itos(self, i: int):
         if i not in self.index2word.keys():
             return self.unk_token
@@ -95,6 +148,7 @@ class Vocab:
             max_length: Optional[int] = None, 
             do_lower: bool = True,
             do_clean: bool = True,
+            return_dict: bool = False,
         ):
         if isinstance(text, str):
             while '  ' in text: text = text.replace('  ', ' ')
@@ -109,7 +163,9 @@ class Vocab:
                 cleaned_words += clean_word(w)
         else:
             cleaned_words = words
-        token_ids = [self.stoi(w) for w in cleaned_words]
+        token_ids = [self.stoi2(w) for w in cleaned_words]
+        if return_dict:
+            return [(k, v) for k, v in zip(cleaned_words, token_ids)]
         if max_length is not None:
             while len(token_ids) < max_length: token_ids.append(self.pad_token_id)
         return token_ids[:max_length]      
@@ -138,11 +194,12 @@ class Vocab:
             'unk_token' : self.unk_token,
             'unk_token_id' : self.unk_token_id
         }
-        json.dump(data, open(fp, 'w'))
+        json.dump(data, open(fp, 'w'), indent=4)
 
     def load(self, fp):
         data = json.load(open(fp, 'r'))
         self.word2index = data['word2index']
+        self.index2word = {v:k for k, v in self.word2index.items()}
         self.pad_token = data['pad_token']
         self.pad_token_id = data['pad_token_id']
         self.unk_token = data['unk_token']
@@ -161,3 +218,5 @@ if __name__ == "__main__":
     tagger = Vocab(cnt, pad_token='<pad>', unk_token=None, start_with_special_tokens=False)
     print(tagger.vocab)
     print(tagger.vocab_size)
+
+    print(is_date('30/11'))

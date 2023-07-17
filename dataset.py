@@ -41,7 +41,7 @@ class COVID19Dataset2(Dataset):
     def __getitem__(self, index):
         if index not in self.map_data:
             item = self.raw_data[index]
-            input_ids = [self.tokenizer.stoi(w.lower()) for w in item['words']][:self.max_length]
+            input_ids = [self.tokenizer.stoi2(w.lower()) for w in item['words']][:self.max_length]
             while len(input_ids) < self.max_length: input_ids.append(self.tokenizer.pad_token_id)
             target_tags = [self.tagger.stoi(t) for t in item['tags']][:self.max_length]
             while len(target_tags) < self.max_length: target_tags.append(self.tagger.pad_token_id)
@@ -55,20 +55,18 @@ class COVID19Dataset2(Dataset):
     
 
 if __name__ == "__main__": 
-    kwargs = {
-        'data_path' : '/workspace/nlplab/kienvt/PhoNER_COVID19_implement/data/syllable/train_syllable.json',
-        'max_length' : 30, 
-    }
+    from utils import build_text_vocab, get_pretrained_vocab
+    raw_data = json.load(open('/workspace/nlplab/kienvt/PhoNER_COVID19_implement/data/syllable/train_syllable.json', 'r'))
 
-    dataset = COVID19Dataset2(**kwargs)
-    item = dataset.__getitem__(1000)
-    for i in item:
-        print(i )
+    tokenizer = build_text_vocab(raw_data)
+    tagger = get_pretrained_vocab('vocab_file/tagger.json')
+    
+    dataset = COVID19Dataset2(raw_data, tokenizer=tokenizer, tagger=tagger, max_length = 40)
+    item = dataset.__getitem__(42)
+    # for i in item:  print(i)
+    print(item[0])
+    print(item[-1])
     print(dataset.tokenizer.detokenize(item[0].tolist()))
     print(dataset.tagger.detokenize(item[-1].tolist()))
     from torch.utils.data import DataLoader
     loader = DataLoader(dataset, batch_size=16, )
-    # for i, (input_ids, attn_mask, target_tags) in enumerate(loader):
-        
-    #     print(input_ids.size(), attn_mask.size(), target_tags.size())
-    #     break
