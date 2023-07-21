@@ -57,7 +57,7 @@ class VisionTransformer(nn.Module):
     def forward(
             self,
             x: torch.Tensor,
-            add_token_cls: bool = True,
+            add_cls_token: bool = True,
             pooling_output: bool = True,
             apply_tanh: bool = False,
             output_attention: bool = False
@@ -74,7 +74,7 @@ class VisionTransformer(nn.Module):
         S = source sequence length
         E = embedding demensionality
         """
-        x = self.embedding(x, add_token_cls=add_token_cls)
+        x = self.embedding(x, add_cls_token=add_cls_token)
         for block in self.encoder_blocks:
             x, final_attn = block(x, output_attention=True)
         if apply_tanh:
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     model._reset_parameters()
     output, attn = model.forward(
                         x,
-                        add_token_cls=True,
+                        add_cls_token=True,
                         output_attention=True
                     )
     
