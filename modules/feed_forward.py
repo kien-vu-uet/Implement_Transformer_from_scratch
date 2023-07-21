@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import List, Optional
 
 class FeedForwardLayer(nn.Module):
     def __init__(
@@ -44,8 +45,42 @@ class FeedForwardLayer(nn.Module):
         return output
     
 
+class MLPBlock(nn.Sequential):
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: List[int],
+        add_norm: Optional[bool] = True,
+        activate_fn: Optional[str] = 'relu',
+        dropout: float=0.1
+    ):
+        """
+        :param in_dim: Input dimensionality
+        :param hidden_dim: List of the hidden layer dimensionality
+        :param add_norm: Add LayerNorm or not
+        :param activate_fn: Activation function. Choose list ['relu', 'gelu', 'sigmoid', 'tanh']
+        :param dropout: The probability for the dropout layer.
+        """
+        if activate_fn == 'relu': activate_fn = nn.ReLU()
+        elif activate_fn == 'gelu': activate_fn = nn.GELU()
+        elif activate_fn == 'sigmoid': activate_fn = nn.Sigmoid()
+        elif activate_fn == 'tanh': activate_fn = nn.Tanh()
+        else: raise Exception(f"Activation {activate_fn} is not allowed!")
+        layers = []
+        for hidden in hidden_dim[:-1]:
+            layers.append(nn.Linear(in_dim, hidden))
+            if add_norm:
+                layers.append(nn.LayerNorm(hidden))
+            layers.append(activate_fn)
+            layers.append(nn.Dropout(dropout))
+            in_dim = hidden
+        layers.append(nn.Linear(in_dim, hidden_dim[-1]))
+        layers.append(nn.Dropout(dropout))
+        super().__init__(*layers)
+    
+
 if __name__ == "__main__":
-    ff = FeedForwardLayer(512, 2048, 'relu')
+    ff = MLPBlock(512, [2048, 512], activate_fn='relu')
     x = torch.randn(2, 5, 512)
     output = ff(x)
     assert output.shape == (2, 5, 512)

@@ -68,7 +68,7 @@ class BERT(nn.Module):
             token_type_ids: Optional[torch.Tensor] = None,
             pooling_output: Optional[bool] = False,
             apply_tanh: Optional[bool] = False,
-            output_attenttion: Optional[bool] = False
+            output_attention: Optional[bool] = False
     ):
         """
         Performs transformer forward pass given input as token ids
@@ -96,7 +96,7 @@ class BERT(nn.Module):
         output = self.classifier(encoder_hidden_states)
         if pooling_output:
             output = output[:, 0]
-        if output_attenttion: 
+        if output_attention: 
             return (
                 output,
                 encoder_attn
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     output, pooler, attn = model.forward(
                         src,
                         src_padding_mask,
-                        output_attenttion=True
+                        output_attention=True
                     )
     
     assert output.shape == (2, 5, 512)

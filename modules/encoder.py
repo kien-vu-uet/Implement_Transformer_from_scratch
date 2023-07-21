@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from typing import Optional
 from .multi_head_attention import MultiHeadAttention
-from .positional_encoding import SinusoidEncoding
 from .feed_forward import FeedForwardLayer
+from .embedding import TextEmbedding
 
 class TransformerEncoder(nn.Module):
     def __init__(
@@ -35,15 +35,7 @@ class TransformerEncoder(nn.Module):
         :param attn_dropout: Dropout when compute attention
         """
         super(TransformerEncoder, self).__init__()
-        self.embed_dim = embed_dim
-        self.embedding = nn.Embedding(src_vocab_size, embed_dim, pad_token_id)
-        self.embed_token_type = False
-        self.positional_encoding = SinusoidEncoding(embed_dim)
-        if num_token_types is not None:
-            self.embed_token_type = True
-            self.token_type_embedding = nn.Embedding(num_token_types, embed_dim)
-            self.register_buffer("token_type_ids", torch.zeros((1, 5000), dtype=torch.long), persistent=False)
-        self.dropout = nn.Dropout(dropout)
+        self.embedding = TextEmbedding(src_vocab_size, pad_token_id, num_token_types, embed_dim, dropout)
         self.encoder_blocks = nn.ModuleList(
             [
                 TransformerEncoderBlock(embed_dim, num_heads, ff_dim, dropout, qkv_bias, attn_dropout, ff_activate_fn)
@@ -78,13 +70,7 @@ class TransformerEncoder(nn.Module):
         S = source sequence length
         E = embedding demensionality
         """
-        x = self.embedding(input_ids) * math.sqrt(self.embed_dim)
-        x = self.positional_encoding(x)
-        if self.embed_token_type:
-            if token_type_ids is None:
-                token_type_ids = self.token_type_ids[:, :x.size(1)]
-            x = x + self.token_type_embedding(token_type_ids)
-        x = self.dropout(x)
+        x = self.embedding(input_ids, token_type_ids)
         for block in self.encoder_blocks:
             x, final_attn = block(x, src_padding_mask=src_padding_mask, output_attention=True)
         if output_attention: return x, final_attn
