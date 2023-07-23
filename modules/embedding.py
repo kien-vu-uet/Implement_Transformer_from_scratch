@@ -123,12 +123,12 @@ class VisionEmbedding(nn.Module):
         assert H == W and H == self.img_size, f"Wrong image size! Expected {self.image_size} but got {H} and {W}!"
         x = self.conv_proj(x) # (B, E, nP, nP)
         x = x.flatten(-2, -1).permute(0, 2, 1) # (B, L, E)
-        if add_cls_token:
-            batch_cls_token = nn.Parameter(torch.zeros(B, 1, self.embed_dim, device=x.device))
-            x = torch.cat([batch_cls_token, x], dim=1)
+        x = self.dropout(x)
         if self.norm is not None:
             x = self.norm(x)
-        x = self.dropout(x)
+        if add_cls_token:
+            batch_cls_token = nn.Parameter(torch.zeros(B, 1, self.embed_dim, device=x.device), requires_grad=True)
+            x = torch.cat([batch_cls_token, x], dim=1)
         return x
 
     
